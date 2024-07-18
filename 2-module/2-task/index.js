@@ -1,5 +1,5 @@
 function isEmpty(obj) {
-  if (Object.keys(obj) != 0) {
+  if (Object.keys(obj).length != 0) {
     return false;
   } else {
     return true;

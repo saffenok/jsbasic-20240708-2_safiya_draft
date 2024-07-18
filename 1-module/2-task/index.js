@@ -11,11 +11,8 @@ function print(text) {
  */
 function isValid(name) {
   // имя не пустое, без пробелов, минимум 4 символа.
-  if ((name !== null) && (name.indexOf(" ") === -1) && (name.length >= 4)) {
-    return true;
-  } else {
-    return false;
-  }
+  return (name !== null) && (name.indexOf(" ") === -1) && (name.length >= 4);
+
 }
 
 function sayHello() {
