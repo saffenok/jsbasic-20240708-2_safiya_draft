@@ -7,6 +7,7 @@ export default class StepSlider {
     this.wrapper = null;
     this.currentValue = -1;
     this.currentActiveValue = value;
+    this.isDragging = false;
 
     this.render();
     this.initEventListeners();
@@ -53,15 +54,21 @@ export default class StepSlider {
   }
 
   onClick = event => {
-    let selectedValue = this.valueCalculation(event.clientX);
-    this.changeValue(selectedValue);
-    this.finalRepositioning(selectedValue);
+    if (this.isDragging) {
+      this.isDragging = false;
+      return;
+    }
 
-    this.createNewCustomEvent(selectedValue);
+    this.selectedValue = this.valueCalculation(event.clientX);
+    this.changeValue(this.selectedValue);
+    this.finalRepositioning(this.selectedValue);
+
+    this.createNewCustomEvent(this.selectedValue);
   }
 
-  onPointerDown = event => {
+  onPointerDown(event) {
     event.preventDefault();
+    this.isDragging = true;
 
     this.wrapper.classList.add('slider_dragging');
 
@@ -80,10 +87,10 @@ export default class StepSlider {
 
     this.selectedValue = this.valueCalculation(clientX);
     this.changeValue(this.selectedValue);
-    this.changeProgressDnD(clientX);
+    this.changeProgressDnD();
   }
 
-  onPointerMove = event => {
+  onPointerMove = (event) => {
     event.preventDefault();
 
     let eventClientX = event.clientX;
@@ -99,7 +106,6 @@ export default class StepSlider {
 
   onPointerUp = () => {
     this.createNewCustomEvent(this.selectedValue);
-    
 
     document.removeEventListener('pointermove', this.onPointerMove);
     document.removeEventListener('pointerup', this.onPointerUp);
@@ -140,9 +146,10 @@ export default class StepSlider {
     currentSpan.classList.add('slider__step-active');
   }
 
-  changeProgressDnD(clientX) {
+  changeProgressDnD() {
     let progress = this.wrapper.querySelector('.slider__progress');
-    progress.style.width = `${(clientX - this.shiftX - this.sliderLeft + (this.thumb.offsetWidth / 2)) / this.wrapper.offsetWidth * 100}%`;
+    let thumbLeft = parseFloat(this.thumb.style.left);
+    progress.style.width = `${thumbLeft / this.wrapper.offsetWidth * 100}%`;
   }
 
   finalRepositioning(currentValue) {
