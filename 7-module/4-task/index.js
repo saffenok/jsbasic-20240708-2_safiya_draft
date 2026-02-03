@@ -6,7 +6,7 @@ export default class StepSlider {
     this.value = value;
     this.wrapper = null;
     this.currentValue = -1;
-    this.currentActiveValue = value;
+    this.selectedValue = value;
     this.isDragging = false;
 
     this.render();
@@ -47,9 +47,7 @@ export default class StepSlider {
     this.wrapper.addEventListener('click', this.onClick);
 
     this.thumb = this.wrapper.querySelector('.slider__thumb');
-    this.thumb.addEventListener('pointerdown', event => {
-      this.onPointerDown(event);
-    });
+    this.thumb.addEventListener('pointerdown', this.onPointerDown);
     this.thumb.ondragstart = () => false;
   }
 
@@ -59,6 +57,9 @@ export default class StepSlider {
       return;
     }
 
+    this.sliderLeft = this.wrapper.getBoundingClientRect().left;
+    this.sliderRight = this.wrapper.getBoundingClientRect().right;
+
     this.selectedValue = this.valueCalculation(event.clientX);
     this.changeValue(this.selectedValue);
     this.finalRepositioning(this.selectedValue);
@@ -66,15 +67,16 @@ export default class StepSlider {
     this.createNewCustomEvent(this.selectedValue);
   }
 
-  onPointerDown(event) {
+  onPointerDown = (event) => {
     event.preventDefault();
     this.isDragging = true;
-
     this.wrapper.classList.add('slider_dragging');
 
     this.sliderLeft = this.wrapper.getBoundingClientRect().left;
     this.sliderRight = this.wrapper.getBoundingClientRect().right;
+
     this.shiftX = event.clientX - this.thumb.getBoundingClientRect().left;
+    this.progress = this.wrapper.querySelector('.slider__progress');
 
     this.moveAt(event.clientX);
 
@@ -83,24 +85,31 @@ export default class StepSlider {
   }
 
   moveAt = clientX => {
-    this.thumb.style.left = clientX - this.shiftX - this.sliderLeft + (this.thumb.offsetWidth / 2) + 'px';
+    if (clientX < this.sliderLeft) {
+      clientX = this.sliderLeft;
+    }
+    if (clientX > this.sliderRight) {
+      clientX = this.sliderRight;
+    }
+    let left = clientX - this.sliderLeft;
+    if (left < 0) {
+      left = 0;
+    }
+    if (left > this.wrapper.offsetWidth) {
+      left = this.wrapper.offsetWidth;
+    }
+
+    this.thumb.style.left = `${left / this.wrapper.offsetWidth * 100}%`;
+    this.progress.style.width = this.thumb.style.left;
 
     this.selectedValue = this.valueCalculation(clientX);
     this.changeValue(this.selectedValue);
-    this.changeProgressDnD();
   }
 
   onPointerMove = (event) => {
     event.preventDefault();
 
     let eventClientX = event.clientX;
-    if (eventClientX < this.sliderLeft) {
-      eventClientX = this.sliderLeft;
-    }
-    if (eventClientX > (this.sliderRight - (this.thumb.offsetWidth / 2))) {
-      eventClientX = this.sliderRight;
-    }
-
     this.moveAt(eventClientX);
   }
 
@@ -109,27 +118,22 @@ export default class StepSlider {
 
     document.removeEventListener('pointermove', this.onPointerMove);
     document.removeEventListener('pointerup', this.onPointerUp);
+
     this.wrapper.classList.remove('slider_dragging');
+
+    setTimeout(() => {
+      this.isDragging = false;
+    }, 100);
   }
 
-  valueCalculation(eventClientX) {
-    let leftSlider = this.wrapper.getBoundingClientRect().left;
-    let sliderWidth = this.wrapper.offsetWidth;
-    let segmentWidth = this.wrapper.offsetWidth / (this.steps - 1);
-    let clickX = eventClientX - leftSlider;
-    let counter = 0;
-    let selectedValue = 0;
-    for (let i = 0; i <= sliderWidth; i += segmentWidth) {
-      if (clickX >= i && clickX <= (i + segmentWidth)) {
-        if ((clickX - (counter * segmentWidth)) >= (segmentWidth / 2)) {
-          selectedValue = counter + 1;
-        } else {
-          selectedValue = counter;
-        }
-        break;
-      }
-      counter++;
-    }
+  valueCalculation = eventClientX => {
+    let sliderWidth = this.wrapper.offsetWidth || this.lastSliderWidth || 1;
+    this.lastSliderWidth = sliderWidth;
+
+    let clickX = eventClientX - this.sliderLeft;
+    let leftRelative = clickX / sliderWidth;
+    let approximateValue = leftRelative * (this.steps - 1);
+    let selectedValue = Math.round(approximateValue);
 
     return selectedValue;
   }
@@ -139,17 +143,11 @@ export default class StepSlider {
     sliderValue.innerHTML = currentValue;
 
     let sliderSteps = this.wrapper.querySelector('.slider__steps');
-    let currentActiveSpan = sliderSteps.children[`${this.currentActiveValue}`];
-    currentActiveSpan.classList.remove('slider__step-active');
-    this.currentActiveValue = currentValue;
-    let currentSpan = sliderSteps.children[`${currentValue}`];
-    currentSpan.classList.add('slider__step-active');
-  }
-
-  changeProgressDnD() {
-    let progress = this.wrapper.querySelector('.slider__progress');
-    let thumbLeft = parseFloat(this.thumb.style.left);
-    progress.style.width = `${thumbLeft / this.wrapper.offsetWidth * 100}%`;
+    let allSpans = sliderSteps.querySelectorAll('span');
+    allSpans.forEach(span => {
+      span.classList.remove('slider__step-active');
+    });
+    allSpans[currentValue].classList.add('slider__step-active');
   }
 
   finalRepositioning(currentValue) {
